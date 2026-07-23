@@ -1,0 +1,23 @@
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Datasets (Do NOT upload heavy CSVs or NPZs)
+data/
+*.csv
+*.npz
+*.pkl
+
+# Model Checkpoints & Outputs
+outputs/
+logs/
+*.pt
+
+# Environment & IDE
+.vscode/
+.idea/
+.venv/
+env/
+venv/
+*.swp
