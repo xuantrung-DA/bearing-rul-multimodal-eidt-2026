@@ -1,8 +1,16 @@
 # Wavelet Cross-Attention GRU (WCA-GRU) for Bearing RUL Prediction
 
-Official implementation of the paper:
+Research implementation associated with the manuscript:
 **"A Multimodal Framework for Bearing Remaining Useful Life Prediction using Wavelet Cross-Attention GRU"**
 *Authors:* Phan Anh Minh, Nguyen Xuan Trung, Phu-Nguyen Le.
+
+[![CI](https://github.com/xuantrung-DA/bearing-rul-multimodal-eidt-2026/actions/workflows/ci.yml/badge.svg)](https://github.com/xuantrung-DA/bearing-rul-multimodal-eidt-2026/actions/workflows/ci.yml)
+
+**Evidence status:** this source release does not distribute the historical
+split manifests, predictions, or run/checkpoint hashes needed to audit the former
+performance table. That table is no longer presented as a verified benchmark.
+The corrected concatenation and single-modality baselines require new training;
+no replacement metrics are claimed in this maintenance update.
 
 ---
 
@@ -38,13 +46,18 @@ WCA-GRU-Bearing-RUL/
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/your-username/WCA-GRU-Bearing-RUL.git
-cd WCA-GRU-Bearing-RUL
+git clone https://github.com/xuantrung-DA/bearing-rul-multimodal-eidt-2026.git
+cd bearing-rul-multimodal-eidt-2026
 ```
 
 ### 2. Install dependencies
 ```bash
-pip install -r requirements.txt
+python -m venv .venv
+# Windows: .venv\Scripts\activate
+# Linux/macOS: source .venv/bin/activate
+python -m pip install -r requirements.txt
+python -m pip install pytest
+python -m pytest -q
 ```
 
 ### 3. Dataset Setup
@@ -82,24 +95,40 @@ python src/train.py
 
 ## 📊 Performance Summary
 
-| Model Variant | S1 Split (RMSE ↓ / MAE ↓) | S2 Split (RMSE ↓ / MAE ↓) | S3 PHM Score ↓ |
-|---|:---:|:---:|:---:|
-| **Case 1: 1D-CNN-GRU (Vib only)** | 42.15 / 38.60 | 28.60 / 26.35 | 24.78 |
-| **Case 2: MLP-GRU (Temp only)** | 35.40 / 32.15 | 24.10 / 22.05 | 9.40 |
-| **Case 3: Concat-GRU (Vib + Temp)** | 31.80 / 28.95 | 21.45 / 19.80 | 7.85 |
-| **Case 4: WCA-GRU (Ours)** | **26.50 / 24.12** | **16.75 / 15.40** | **5.52** |
+No audited performance summary is distributed with this source release.
+Use `MODALITY_MODE` in [src/config.py](src/config.py) to construct a new model:
+
+| Mode | Architecture contract |
+| --- | --- |
+| `vib_only` | Vibration encoder -> GRU -> regression head; no thermal encoder or fusion |
+| `temp_only` | Thermal MLP -> GRU -> regression head; no vibration encoder or fusion |
+| `concat` | Concatenate both encoder outputs along features -> GRU -> head |
+| `wca_gru` | Vibration query, thermal key/value -> cross-attention -> GRU -> head |
+
+The former `concat` path added embeddings rather than concatenating them, and
+single-modality modes zeroed inputs while retaining the fusion path. Old baseline
+checkpoints/results are not compatible with the corrected comparisons. The main
+`wca_gru` model architecture is unchanged. Do not change modality after constructing
+a model; instantiate a fresh model and use a separate output directory per mode.
+
+Synthetic tests verify architecture contracts, not RUL accuracy. A new benchmark
+must publish file-level splits, scaler fit scope, seeds, dependency versions,
+parameter counts, per-origin/per-run metrics, predictions and checkpoint hashes.
+Default file-level temporal splits do not establish generalization to unseen
+bearings. Requirements specify minimum versions, not a full dependency lock.
 
 ---
 
 ## 📜 Citation & Acknowledgements
 
-If you use this repository or paper in your research, please cite:
+Until a final publisher record is available and verified, cite the manuscript
+without inventing a journal, DOI, or publication status:
 
 ```bibtex
-@article{phan2026wcagru,
+@misc{phan2026wcagru,
   title={A Multimodal Framework for Bearing Remaining Useful Life Prediction using Wavelet Cross-Attention GRU},
   author={Phan, Anh Minh and Nguyen, Xuan Trung and Le, Phu-Nguyen},
-  journal={Predictive Maintenance & Machine Learning},
+  note={Research manuscript; final publication metadata not verified in this repository},
   year={2026}
 }
 ```

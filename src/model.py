@@ -242,6 +242,9 @@ class WCAGRUModel(nn.Module):
         super().__init__()
 
         self.config = config
+        self.modality_mode = config.MODALITY_MODE.lower()
+        if self.modality_mode not in {"wca_gru", "vib_only", "temp_only", "concat"}:
+            raise ValueError(f"Unsupported modality mode: {self.modality_mode}")
 
         self.vib_encoder = VibrationEncoder(
             input_dim=config.VIB_FEATURE_DIM,
@@ -264,8 +267,16 @@ class WCAGRUModel(nn.Module):
             dropout=config.ATTENTION_DROPOUT,
         )
 
+        # Single-modality baselines do not retain an inactive encoder or fusion.
+        if self.modality_mode == "vib_only":
+            self.temp_encoder = None
+        elif self.modality_mode == "temp_only":
+            self.vib_encoder = None
+        if self.modality_mode != "wca_gru":
+            self.fusion = None
+
         self.temporal = TemporalModel(
-            input_dim=config.FUSION_DIM,
+            input_dim=config.FUSION_DIM * (2 if self.modality_mode == "concat" else 1),
             hidden_dim=config.RNN_HIDDEN_DIM,
             num_layers=config.RNN_LAYERS,
             dropout=config.RNN_DROPOUT,
@@ -279,21 +290,18 @@ class WCAGRUModel(nn.Module):
         )
 
     def forward(self, vib_x, temp_x, return_attention=False):
-        mode = getattr(self.config, "MODALITY_MODE", "wca_gru").lower()
-
-        if mode == "vib_only":
-            temp_x = torch.zeros_like(temp_x)
-        elif mode == "temp_only":
-            vib_x = torch.zeros_like(vib_x)
-
-        vib_z = self.vib_encoder(vib_x)
-        temp_z = self.temp_encoder(temp_x)
-
-        if mode == "concat":
-            fused_z = self.fusion.norm2(self.fusion.norm1(vib_z + temp_z))
-            attn_weights = None
+        attn_weights = None
+        if self.modality_mode == "vib_only":
+            fused_z = self.vib_encoder(vib_x)
+        elif self.modality_mode == "temp_only":
+            fused_z = self.temp_encoder(temp_x)
         else:
-            fused_z, attn_weights = self.fusion(vib_z, temp_z)
+            vib_z = self.vib_encoder(vib_x)
+            temp_z = self.temp_encoder(temp_x)
+            if self.modality_mode == "concat":
+                fused_z = torch.cat((vib_z, temp_z), dim=-1)
+            else:
+                fused_z, attn_weights = self.fusion(vib_z, temp_z)
 
         temporal_z = self.temporal(fused_z)
         pred_rul = self.regressor(temporal_z)
